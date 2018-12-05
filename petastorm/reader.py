@@ -15,7 +15,7 @@
 import collections
 import logging
 import os
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 
 import six
 from pyarrow import parquet as pq
@@ -35,6 +35,7 @@ from petastorm.unischema import Unischema
 from petastorm.workers_pool import EmptyResultError
 from petastorm.workers_pool.dummy_pool import DummyPool
 from petastorm.workers_pool.process_pool import ProcessPool
+from petastorm.workers_pool.pytorch_process_pool import PytorchProcessPool
 from petastorm.workers_pool.thread_pool import ThreadPool
 from petastorm.workers_pool.ventilator import ConcurrentVentilator
 
@@ -133,6 +134,8 @@ def make_reader(dataset_url,
             reader_pool = ThreadPool(workers_count)
         elif reader_pool_type == 'process':
             reader_pool = ProcessPool(workers_count, pyarrow_serialize=pyarrow_serialize)
+        elif reader_pool_type == 'pytorch':
+            reader_pool = PytorchProcessPool(workers_count)
         elif reader_pool_type == 'dummy':
             reader_pool = DummyPool()
         else:
@@ -308,6 +311,7 @@ class Reader(object):
 
         # _result
         self._result_buffer = []
+        self._max_rows = None
 
     def _filter_row_groups(self, dataset, row_groups, predicate, rowgroup_selector, cur_shard,
                            shard_count):
@@ -482,8 +486,25 @@ class Reader(object):
             self.last_row_consumed = True
             raise StopIteration
 
-    def next(self):
-        return self.__next__()
+    next = __next__  # Python 2 compatibility
+
+    def max_rows(self):
+        """Returned the absolute maximum number of rows in this dataset"""
+        if self._max_rows is not None:
+            return self._max_rows
+
+        thread_pool = ThreadPoolExecutor()
+
+        futures = []
+        for piece in self.dataset.pieces:
+            f = thread_pool.submit(
+                lambda piece: piece.get_metadata(lambda path: self.dataset.fs.open(path)).num_rows,
+                piece
+            )
+            futures.append(f)
+
+        self._max_rows = sum([f.result() for f in as_completed(futures)])
+        return self._max_rows
 
     # Functions needed to treat reader as a context manager
     def __enter__(self):

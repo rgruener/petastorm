@@ -35,15 +35,17 @@ from petastorm.unischema import UnischemaField, Unischema
 
 # pylint: disable=unnecessary-lambda
 MINIMAL_READER_FLAVOR_FACTORIES = [
-    lambda url, **kwargs: make_reader(url, reader_pool_type='dummy', **kwargs),
-    lambda url, **kwargs: make_reader(url, reader_engine='experimental_reader_v2', **kwargs),
+    # lambda url, **kwargs: make_reader(url, reader_pool_type='dummy', **kwargs),
+    lambda url, **kwargs: make_reader(url, reader_pool_type='pytorch', **kwargs),
+    # lambda url, **kwargs: make_reader(url, reader_engine='experimental_reader_v2', **kwargs),
 ]
 
 # pylint: disable=unnecessary-lambda
 ALL_READER_FLAVOR_FACTORIES = MINIMAL_READER_FLAVOR_FACTORIES + [
-    lambda url, **kwargs: make_reader(url, reader_pool_type='thread', **kwargs),
-    lambda url, **kwargs: make_reader(url, reader_pool_type='process', workers_count=2, **kwargs),
-    lambda url, **kwargs: make_reader(url, workers_count=2, reader_engine='experimental_reader_v2', **kwargs)
+    # lambda url, **kwargs: make_reader(url, reader_pool_type='thread', **kwargs),
+    # lambda url, **kwargs: make_reader(url, reader_pool_type='process', workers_count=2, **kwargs),
+    # lambda url, **kwargs: make_reader(url, reader_pool_type='pytorch', **kwargs),
+    # lambda url, **kwargs: make_reader(url, workers_count=2, reader_engine='experimental_reader_v2', **kwargs)
 ]
 
 

@@ -128,9 +128,12 @@ class Unischema(object):
         :param fields: subset of fields from which to create a new schema
         :return: a new view of the original schema containing only the supplied fields
         """
-        for field in fields:
+        for i, field in enumerate(fields):
             # Comparing by field names. Prevoiusly was looking for `field not in self._fields.values()`, but it breaks
             # due to faulty pickling: T223683
+            if isinstance(field, str):
+                field = self.fields[field]
+                fields[i] = field
             if field.name not in self._fields:
                 raise ValueError('field {} does not belong to the schema {}'.format(field, self))
         # TODO(yevgeni): what happens when we have several views? Is it ok to have multiple namedtuples named similarly?

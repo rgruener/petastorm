@@ -33,7 +33,8 @@ from petastorm.tf_utils import tf_tensors
 # pylint: disable=unnecessary-lambda
 READER_FACTORIES = [
     lambda url, **kwargs: make_reader(url, reader_pool_type='dummy', **kwargs),
-    lambda url, **kwargs: make_reader(url, reader_pool_type='process', workers_count=1, **kwargs),
+    # lambda url, **kwargs: make_reader(url, reader_pool_type='process', workers_count=1, **kwargs),
+    lambda url, **kwargs: make_reader(url, reader_pool_type='pytorch', workers_count=1, **kwargs),
     lambda url, **kwargs: make_reader(url, reader_engine='experimental_reader_v2', reader_pool_type='dummy',
                                       reader_engine_params={'loader_pool': SameThreadExecutor()}, **kwargs),
 ]

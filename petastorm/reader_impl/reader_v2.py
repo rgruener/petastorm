@@ -18,7 +18,7 @@ import threading
 from collections import Counter
 
 import six
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pyarrow import parquet as pq
 from six.moves.queue import Queue
 from six.moves.urllib.parse import urlparse
@@ -175,6 +175,7 @@ class ReaderV2(object):
         self._flow_manager_thread.start()
 
         self._read_timeout_s = read_timeout_s
+        self._max_rows = None
 
     def _apply_row_drop_partition(self, row_groups, shuffle_row_drop_partitions):
         items_to_ventilate = []
@@ -328,6 +329,24 @@ class ReaderV2(object):
 
     def next(self):
         return self.__next__()
+
+    def max_rows(self):
+        """Returned the absolute maximum number of rows in this dataset"""
+        if self._max_rows is not None:
+            return self._max_rows
+
+        thread_pool = ThreadPoolExecutor()
+
+        futures = []
+        for piece in self._dataset.pieces:
+            f = thread_pool.submit(
+                lambda piece: piece.get_metadata(lambda path: self._dataset.fs.open(path)).num_rows,
+                piece
+            )
+            futures.append(f)
+
+        self._max_rows = sum([f.result() for f in as_completed(futures)])
+        return self._max_rows
 
     # Functions needed to treat reader as a context manager
     def __enter__(self):

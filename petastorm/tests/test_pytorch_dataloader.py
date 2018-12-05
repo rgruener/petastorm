@@ -7,8 +7,9 @@ import pyarrow  # noqa: F401 pylint: disable=W0611
 import torch
 
 from petastorm import make_reader
-from petastorm.pytorch import _sanitize_pytorch_types, DataLoader, decimal_friendly_collate
+from petastorm.pytorch import _sanitize_pytorch_types, DataLoader, decimal_friendly_collate, PetastormDataset
 from petastorm.tests.test_common import TestSchema
+from torch.utils.data.dataloader import DataLoader as TorchDataLoader
 
 BATCHABLE_FIELDS = set(TestSchema.fields.values()) - \
                    {TestSchema.matrix_nullable, TestSchema.string_array_nullable,
@@ -64,8 +65,9 @@ def _sensor_name_to_int(row):
 
 @pytest.mark.parametrize('reader_factory', ALL_READER_FLAVOR_FACTORIES)
 def test_simple_read(synthetic_dataset, reader_factory):
-    with DataLoader(reader_factory(synthetic_dataset.url, schema_fields=BATCHABLE_FIELDS),
-                    transform=_sensor_name_to_int) as loader:
+    with reader_factory(synthetic_dataset.url, schema_fields=BATCHABLE_FIELDS) as reader:
+        petastorm_dataset = PetastormDataset(reader)
+        loader = TorchDataLoader(petastorm_dataset, collate_fn=decimal_friendly_collate, num_workers=0)
         _check_simple_reader(loader, synthetic_dataset.data, BATCHABLE_FIELDS - {TestSchema.sensor_name})
 
 
